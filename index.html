@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Poznej funkci podle grafu</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--ink:#1d2330;--mut:#667085;--line:#d4d7de;--grid:#e9eaef;--acc:#2f5bea;--ok:#1a8f4d;--okbg:#e3f5ea;--bad:#c93a3a;--badbg:#fbe6e6;--curve:#e0561b;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161c;--card:#1e222b;--ink:#eceef3;--mut:#9aa3b5;--line:#3a4050;--grid:#2a2f3b;--acc:#7b9bff;--ok:#4cc982;--okbg:#17352554;--bad:#ff7a7a;--badbg:#3d1d1d;--curve:#ff8a4d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14161c;--card:#1e222b;--ink:#eceef3;--mut:#9aa3b5;--line:#3a4050;--grid:#2a2f3b;--acc:#7b9bff;--ok:#4cc982;--okbg:#17352554;--bad:#ff7a7a;--badbg:#3d1d1d;--curve:#ff8a4d;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:16px}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:12px}
+h1{font-size:1.3rem;margin:0}
+.score{color:var(--mut);font-size:.9rem;text-align:right}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px}
+svg{display:block;width:100%;height:auto;max-width:100%}
+.g{stroke:var(--grid);stroke-width:1}.ax{stroke:var(--mut);stroke-width:1.6}
+.tk{fill:var(--mut);font-size:10px;font-family:system-ui,sans-serif}
+.cv{fill:none;stroke:var(--curve);stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+h2{font-size:1rem;margin:16px 0 8px;font-weight:600}
+.opts{display:grid;gap:8px}
+@media(min-width:520px){.opts{grid-template-columns:1fr 1fr}}
+.opt{display:flex;align-items:center;gap:10px;width:100%;min-height:58px;padding:10px 12px;background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:12px;cursor:pointer;text-align:left;font:inherit}
+.opt:hover:not(:disabled){border-color:var(--acc)}
+.opt:disabled{cursor:default}
+.opt .l{flex:none;width:26px;height:26px;border-radius:50%;background:var(--grid);display:grid;place-items:center;font-size:.8rem;font-weight:700;color:var(--mut)}
+.opt .f{font-family:"Cambria Math",Cambria,Georgia,serif;font-size:1.15rem;overflow-x:auto}
+.opt.ok{border-color:var(--ok);background:var(--okbg)}
+.opt.bad{border-color:var(--bad);background:var(--badbg)}
+.fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 .15em;font-size:.92em}
+.fr>span:first-child{border-bottom:1.5px solid currentColor;padding:0 .2em .05em}
+.fr>span:last-child{padding:.05em .2em 0}
+#fb{margin-top:12px;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--line);display:none}
+#fb b{display:block;margin-bottom:2px}
+#next{display:none;margin-top:12px;width:100%;padding:13px;border:0;border-radius:12px;background:var(--acc);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+@media(prefers-color-scheme:dark){#next{color:#10131a}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Poznej funkci</h1><div class="score" id="sc"></div></header>
+<div class="card" id="gr"></div>
+<h2>Který předpis patří tomuto grafu?</h2>
+<div class="opts" id="op"></div>
+<div id="fb"></div>
+<button id="next">Další graf →</button>
+</main>
+<script>
+const R=Math.random,abs=Math.abs,M='−';
+const pick=a=>a[Math.floor(R()*a.length)];
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const num=v=>String(Math.round(v*100)/100).replace('.',',').replace('-',M);
+const co=(c,v)=>v===''?num(abs(c)):(abs(c)===1?v:num(abs(c))+v);
+function poly(t){let s='';t.forEach(([c,v])=>{if(c===0)return;const b=co(c,v);s?s+=(c<0?' '+M+' ':' + ')+b:s=(c<0?M:'')+b});return s||'0'}
+const frac=(n,d)=>`<span class="fr"><span>${n}</span><span>${d}</span></span>`;
+const aS=a=>a===1?'':a===-1?M:num(a);
+const tail=q=>q?(q<0?' '+M+' ':' + ')+abs(q):'';
+const LA=[-3,-2,-1.5,-1,-0.5,0.5,1,1.5,2,3],RI=[-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6];
+const T={
+lin:{name:'lineární funkce',
+ gen:()=>({t:'lin',a:pick(LA),b:pick(RI)}),
+ f:(p,x)=>p.a*x+p.b,
+ tex(p){const {a,b}=p,q=Number.isInteger(a)?1:2;
+  const f=[()=>'y = '+poly([[a,'x'],[b,'']])];
+  f.push(()=>'y = '+(Number.isInteger(a)?poly([[a,'x'],[b,'']]):(a<0?M:'')+frac(abs(a)*2,2)+'x'+tail(b)));
+  f.push(()=>poly([[a*q,'x'],[-q,'y'],[b*q,'']])+' = 0');
+  return pick(f)()},
+ tw(p){const c={...p},o=Math.floor(R()*3);
+  if(o===0)c.a=-p.a;else if(o===1)c.b=p.b+pick([-2,-1,1,2]);else c.a=pick(LA.filter(v=>v!==p.a));return c},
+ why:p=>`Přímka protíná osu y v bodě [0; ${num(p.b)}] a při posunu o 1 doprava ${p.a>0?'stoupá':'klesá'} o ${num(abs(p.a))}.`},
+quad:{name:'kvadratická funkce',
+ gen:()=>({t:'quad',a:pick([-2,-1,-0.5,0.5,1,2]),p:pick([-4,-3,-2,-1,0,1,2,3,4]),q:pick([-5,-4,-3,-2,-1,0,1,2,3,4,5])}),
+ f:(p,x)=>p.a*(x-p.p)**2+p.q,
+ tex(p){const {a,p:h,q}=p;
+  if(R()<.5)return 'y = '+aS(a)+(h===0?'x<sup>2</sup>':'(x'+(h>0?' '+M+' ':' + ')+abs(h)+')<sup>2</sup>')+tail(q);
+  return 'y = '+poly([[a,'x<sup>2</sup>'],[-2*a*h,'x'],[a*h*h+q,'']])},
+ tw(p){const c={...p},o=Math.floor(R()*3);
+  if(o===0)c.a=-p.a;else if(o===1){R()<.5?c.p=p.p+pick([-2,-1,1,2]):c.q=p.q+pick([-2,-1,1,2])}else{c.q=-p.q||2;c.a=pick([-2,-1,-0.5,0.5,1,2].filter(v=>v!==p.a))}return c},
+ why:p=>`Vrchol paraboly je v bodě [${num(p.p)}; ${num(p.q)}], je otevřená ${p.a>0?'nahoru':'dolů'}${abs(p.a)>1?' a je užší než y = x²':abs(p.a)<1?' a je širší než y = x²':''}.`},
+pow:{name:'mocninná funkce',
+ gen:()=>({t:'pow',a:pick([-2,-1,-0.5,0.5,1,2]),n:pick([3,4,-2])}),
+ f:(p,x)=>p.a*x**p.n,
+ tex(p){const {a,n}=p;
+  if(n<0&&R()<.5)return 'y = '+frac(num(a),'x<sup>'+abs(n)+'</sup>');
+  return 'y = '+aS(a)+'x<sup>'+num(n)+'</sup>'},
+ tw(p){const c={...p},o=Math.floor(R()*3);
+  if(o===0)c.a=-p.a;else if(o===1)c.n=pick([3,4,-2].filter(v=>v!==p.n));else c.a=pick([-2,-1,-0.5,0.5,1,2].filter(v=>v!==p.a));return c},
+ why:p=>p.n<0?`Záporný sudý exponent: osy jsou asymptoty a graf leží celý ${p.a>0?'nad':'pod'} osou x.`:p.n%2?`Lichý exponent: graf je souměrný podle počátku a prochází bodem [0; 0].`:`Sudý exponent: graf je souměrný podle osy y a prochází bodem [0; 0].`},
+fr:{name:'lineární lomená funkce',
+ gen(){const q0=pick([-4,-3,-2,-1,0,1,2,3,4]),p=pick([-4,-3,-2,-1,0,1,2,3,4]);return{t:'fr',k:pick([-4,-3,-2,-1,1,2,3,4]),p,q:(p===0&&q0===0)?pick([-3,-2,-1,1,2,3]):q0}},
+ f:(p,x)=>p.k/(x-p.p)+p.q,
+ tex(p){const {k,p:h,q}=p,den=poly([[1,'x'],[-h,'']]);
+  if(q!==0&&R()<.5)return 'y = '+frac(poly([[q,'x'],[k-h*q,'']]),den);
+  return 'y = '+frac(num(k),den)+tail(q)},
+ tw(p){const c={...p},o=Math.floor(R()*3);
+  if(o===0)c.k=-p.k;else if(o===1){R()<.5?c.p=p.p+pick([-2,-1,1,2]):c.q=p.q+pick([-2,-1,1,2])}else{c.p=p.q;c.q=p.p;if(!c.p&&!c.q)c.q=2}return c},
+ why:p=>`Svislá asymptota je x = ${num(p.p)}, vodorovná y = ${num(p.q)}. Větve leží ${p.k>0?'vpravo nahoře a vlevo dole':'vlevo nahoře a vpravo dole'} od jejich průsečíku.`}
+};
+const F=(p,x)=>T[p.t].f(p,x);
+function differs(P,Q){let n=0;for(let x=-7.9;x<8;x+=.31){const a=F(P,x),b=F(Q,x);if(isFinite(a)&&isFinite(b)&&abs(a-b)>.4)n++}return n>=4}
+function build(){
+ for(let tr=0;tr<40;tr++){
+  const ty=pick(Object.keys(T)),P=T[ty].gen();
+  let S=null;
+  for(let i=0;i<50&&!S;i++){const c=T[ty].tw(P);if(differs(P,c))S=c}
+  if(!S)continue;
+  const os=shuffle(Object.keys(T).filter(k=>k!==ty)).slice(0,2).map(k=>T[k].gen());
+  const all=[P,S,...os];let ok=true;
+  for(let i=0;i<4&&ok;i++)for(let j=i+1;j<4;j++)if(!differs(all[i],all[j]))ok=false;
+  if(!ok)continue;
+  const items=all.map((p,i)=>({p,ok:i===0,html:T[p.t].tex(p)}));
+  if(new Set(items.map(i=>i.html)).size<4)continue;
+  return shuffle(items);
+ }
+ return build();
+}
+const S=25,L=8,X=x=>(x+L)*S,Y=y=>(L-y)*S;
+function graph(P){
+ let s='<svg viewBox="0 0 400 400" role="img" aria-label="Graf funkce"><defs><clipPath id="c"><rect width="400" height="400"/></clipPath></defs>';
+ for(let i=-L;i<=L;i++){
+  s+=`<line class="${i?'g':'ax'}" x1="${X(i)}" y1="0" x2="${X(i)}" y2="400"/><line class="${i?'g':'ax'}" x1="0" y1="${Y(i)}" x2="400" y2="${Y(i)}"/>`;
+  if(i&&i%2===0){s+=`<text class="tk" x="${X(i)}" y="${Y(0)+13}" text-anchor="middle">${num(i)}</text><text class="tk" x="${X(0)-4}" y="${Y(i)+3.5}" text-anchor="end">${num(i)}</text>`}
+ }
+ s+=`<text class="tk" x="${X(0)-4}" y="${Y(0)+13}" text-anchor="end">0</text><text class="tk" x="392" y="${Y(0)-5}" text-anchor="end">x</text><text class="tk" x="${X(0)+5}" y="11">y</text>`;
+ let d='',prev=null;
+ for(let i=0;i<=800;i++){const x=-8+i*.02,y=F(P,x);
+  if(!isFinite(y)||abs(y)>200){prev=null;continue}
+  if(prev!==null&&prev*y<0&&abs(prev-y)>16)prev=null;
+  d+=(prev===null?' M':' L')+X(x).toFixed(1)+' '+Y(y).toFixed(1);prev=y}
+ return s+`<path class="cv" clip-path="url(#c)" d="${d}"/></svg>`;
+}
+let items,done,score=0,total=0,streak=0;
+const $=id=>document.getElementById(id);
+function upd(){$('sc').innerHTML=`Skóre: <b>${score}/${total}</b><br>Série: ${streak}`}
+function round(){
+ items=build();done=false;
+ $('gr').innerHTML=graph(items.find(i=>i.ok).p);
+ $('op').innerHTML=items.map((it,i)=>`<button class="opt" data-i="${i}"><span class="l">${'ABCD'[i]}</span><span class="f">${it.html}</span></button>`).join('');
+ $('fb').style.display='none';$('next').style.display='none';upd();
+}
+$('op').addEventListener('click',e=>{
+ const b=e.target.closest('.opt');if(!b||done)return;done=true;total++;
+ const it=items[+b.dataset.i],right=items.find(i=>i.ok);
+ document.querySelectorAll('.opt').forEach((el,i)=>{el.disabled=true;if(items[i].ok)el.classList.add('ok');else if(el===b)el.classList.add('bad')});
+ if(it.ok){score++;streak++}else streak=0;
+ $('fb').innerHTML=`<b>${it.ok?'Správně!':'To není ono.'}</b>Graf patří funkci typu: ${T[right.p.t].name}. ${T[right.p.t].why(right.p)}`;
+ $('fb').style.display='block';$('next').style.display='block';upd();
+ $('next').scrollIntoView({block:'nearest',behavior:'smooth'});
+});
+$('next').addEventListener('click',()=>{round();window.scrollTo({top:0,behavior:'smooth'})});
+round();
+</script>
+</body>
+</html>
